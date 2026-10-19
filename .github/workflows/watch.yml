@@ -1,0 +1,34 @@
+name: fleet watch
+
+# Every 5 minutes (GitHub may delay scheduled runs a few minutes). Free on a public repo; no Claude.
+# All project code and data stay in the private repo: this job fetches them with the QUEUE_TOKEN secret
+# (a fine-grained token with Contents read/write on PhotonBounce/occupantkiller-1 only) and prints
+# nothing, because the logs of a public repo are public.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: fleet-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Check the fleet
+        env:
+          QUEUE_TOKEN: ${{ secrets.QUEUE_TOKEN }}
+        run: |
+          set -eu
+          if [ -z "${QUEUE_TOKEN:-}" ]; then echo "QUEUE_TOKEN secret missing"; exit 1; fi
+          url="https://x-access-token:${QUEUE_TOKEN}@github.com/PhotonBounce/occupantkiller-1.git"
+          git clone -q --depth 1 -b cloudfleet-queue "$url" q >/dev/null 2>&1 || { echo "queue clone failed"; exit 1; }
+          git clone -q --depth 1 -b cloudfleet-ops "$url" ops >/dev/null 2>&1 || { echo "ops clone failed"; exit 1; }
+          git -C q fetch -q --unshallow >/dev/null 2>&1 || true
+          python3 ops/cloudfleet/watch.py q >/dev/null 2>&1 || { echo "check failed"; exit 1; }
+          echo "ok"
