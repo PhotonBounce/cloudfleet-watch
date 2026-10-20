@@ -31,7 +31,7 @@ jobs:
           git clone -q --depth 1 -b cloudfleet-queue "$url" q >/dev/null 2>&1 || { echo "queue clone failed"; exit 1; }
           git clone -q --depth 1 -b cloudfleet-ops "$url" ops >/dev/null 2>&1 || { echo "ops clone failed"; exit 1; }
           git -C q fetch -q --unshallow >/dev/null 2>&1 || true
-          python3 ops/cloudfleet/watch.py q >/dev/null 2>&1 || { echo "check failed"; exit 1; }
+          python3 ops/cloudfleet/watch.py q >/dev/null 2>err.txt || { echo "check failed: $(grep -m1 "push never landed" err.txt | cut -c1-400)"; exit 1; }
           echo "ok"
       - name: Keep-alive (GitHub disables schedules after 60 days without a commit here)
         run: |
