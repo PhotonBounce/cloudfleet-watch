@@ -12,10 +12,10 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "auto (launch when work is queued), selftest (one short GPU check per account), status (look only), worker (start a worker on every account now, for a test)"
+        description: "auto (launch when work is queued), selftest (one short GPU check per account), status (look only), worker (start a worker on every account now, for a test), cpuprobe (measure concurrent CPU sessions)"
         default: auto
         type: choice
-        options: [auto, selftest, status, worker]
+        options: [auto, selftest, status, worker, cpuprobe]
       accelerator:
         description: "GPU type for this run (empty = T4 x2); e.g. NvidiaTeslaP100 to selftest a P100"
         default: ""
@@ -43,7 +43,7 @@ jobs:
           KAGGLE_ACCEL: ${{ inputs.accelerator || '' }}
         run: |
           set -eu
-          case "$MODE" in auto|selftest|status|worker) ;; *) echo "bad mode"; exit 1;; esac
+          case "$MODE" in auto|selftest|status|worker|cpuprobe) ;; *) echo "bad mode"; exit 1;; esac
           url="https://x-access-token:${QUEUE_TOKEN}@github.com/PhotonBounce/occupantkiller-1.git"
           git clone -q --depth 1 -b cloudfleet-queue "$url" q >/dev/null 2>&1 || { echo "queue clone failed"; exit 1; }
           git clone -q --depth 1 -b cloudfleet-ops --filter=blob:none --sparse "$url" ops >/dev/null 2>&1 || { echo "ops clone failed"; exit 1; }
