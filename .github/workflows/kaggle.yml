@@ -1,7 +1,8 @@
 name: kaggle
 
-# Every 10 minutes: keep one cloudfleet worker kernel per Kaggle account running while the private queue holds GPU
-# work it can do (Kaggle: ~30 free GPU hours a week per account, so nothing starts for an empty queue).
+# Every 10 minutes: keep a GPU worker kernel (one worker per T4) and a CPU worker kernel per Kaggle account running back
+# to back while the private queue holds work they can do (~30 free GPU hours a week per account; nothing starts for an
+# empty queue, and idle workers stop after 20 minutes).
 # The launcher and the kernel source live in the private repo (cloudfleet/kaggle_launcher.py, kaggle_kernel.py on
 # cloudfleet-ops); this job only fetches and runs them. It prints nothing but "ok" or "failed", because the logs of a
 # public repo are public: every detail goes to reports/kaggle-status.json on the private queue branch.
@@ -15,6 +16,10 @@ on:
         default: auto
         type: choice
         options: [auto, selftest, status, worker]
+      accelerator:
+        description: "GPU type for this run (empty = T4 x2); e.g. NvidiaTeslaP100 to selftest a P100"
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -35,6 +40,7 @@ jobs:
           KAGGLE_TOKEN_B: ${{ secrets.KAGLE_TWO }}
           CF_GITHUB_TOKEN: ${{ secrets.KAGGLE_GITHUB_TOKEN || secrets.QUEUE_TOKEN }}
           MODE: ${{ inputs.mode || 'auto' }}
+          KAGGLE_ACCEL: ${{ inputs.accelerator || '' }}
         run: |
           set -eu
           case "$MODE" in auto|selftest|status|worker) ;; *) echo "bad mode"; exit 1;; esac
