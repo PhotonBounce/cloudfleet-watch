@@ -1,0 +1,37 @@
+name: brains
+
+# Every 15 minutes: the owner's free Gemini keys answer text jobs (needs: "brain") from the private queue.
+# The code lives in the private repo (cloudfleet/brains.py on cloudfleet-ops); this job only fetches and runs it,
+# and prints nothing but a count, because the logs of a public repo are public.
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: brains
+  cancel-in-progress: false
+
+jobs:
+  brains:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - name: Run the brains
+        env:
+          QUEUE_TOKEN: ${{ secrets.QUEUE_TOKEN }}
+          GEMINI_FREE_1: ${{ secrets.GEMINI_FREE_1 }}
+          GEMINI_FREE_2: ${{ secrets.GEMINI_FREE_2 }}
+          GEMINI_FREE_3: ${{ secrets.GEMINI_FREE_3 }}
+          GEMINI_FREE_4: ${{ secrets.GEMINI_FREE_4 }}
+          GEMINI_FREE_5: ${{ secrets.GEMINI_FREE_5 }}
+        run: |
+          set -eu
+          url="https://x-access-token:${QUEUE_TOKEN}@github.com/PhotonBounce/occupantkiller-1.git"
+          git clone -q --depth 1 -b cloudfleet-queue "$url" q >/dev/null 2>&1 || { echo "queue clone failed"; exit 1; }
+          git clone -q --depth 1 -b cloudfleet-ops "$url" ops >/dev/null 2>&1 || { echo "ops clone failed"; exit 1; }
+          out=$(python3 ops/cloudfleet/brains.py q 2>err.txt) || { echo "brains failed: $(tail -1 err.txt | sed -E 's/AIza[0-9A-Za-z_-]+/***/g' | cut -c1-300)"; exit 1; }
+          echo "$out" | tail -1
