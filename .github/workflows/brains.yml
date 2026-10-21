@@ -11,18 +11,25 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: brains
-  cancel-in-progress: false
-
 jobs:
   brains:
+    # Two lanes in parallel (owner 2026-10-21: "I want Grisha's voices first"): "tts" voices Grisha only (news
+    # bulletins first) on the TTS models, "text" answers every other job on text models only. Each lane has its own
+    # concurrency group, so a long text run never delays the voice and text never spends the TTS quota.
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [tts, text]
+    concurrency:
+      group: brains-${{ matrix.lane }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 14
     steps:
       - name: Run the brains
         env:
           QUEUE_TOKEN: ${{ secrets.QUEUE_TOKEN }}
+          BRAINS_LANE: ${{ matrix.lane }}
           GEMINI_FREE_1: ${{ secrets.GEMINI_FREE_1 }}
           GEMINI_FREE_2: ${{ secrets.GEMINI_FREE_2 }}
           GEMINI_FREE_3: ${{ secrets.GEMINI_FREE_3 }}
