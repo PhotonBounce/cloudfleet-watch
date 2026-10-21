@@ -53,7 +53,7 @@ jobs:
           # keeps checking every 9 min for ~45 min; the next scheduled run queues behind it (one per concurrency group).
           rounds=1; [ "$MODE" = auto ] && rounds=5
           for i in $(seq 1 $rounds); do
-            [ "$i" -gt 1 ] && { sleep 540; git -C ops pull -q >/dev/null 2>&1 || true; }
+            [ "$i" -gt 1 ] && { sleep 540; git -C ops pull -q >/dev/null 2>&1 || true; git -C q fetch -q origin cloudfleet-queue >/dev/null 2>&1 && git -C q reset -q --hard FETCH_HEAD >/dev/null 2>&1 || true; }
             python3 ops/cloudfleet/kaggle_launcher.py q "$MODE" >/dev/null 2>&1 || { echo "failed (details in the private status file)"; exit 1; }
           done
           echo "ok"
