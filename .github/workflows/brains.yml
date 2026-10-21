@@ -28,6 +28,14 @@ jobs:
           GEMINI_FREE_3: ${{ secrets.GEMINI_FREE_3 }}
           GEMINI_FREE_4: ${{ secrets.GEMINI_FREE_4 }}
           GEMINI_FREE_5: ${{ secrets.GEMINI_FREE_5 }}
+          GEMINI_FREE_6: ${{ secrets.CLAUDEFLEET_TWO }}
+          GEMINI_FREE_7: ${{ secrets.CLAUDEFLEET_THREE }}
+          GEMINI_FREE_8: ${{ secrets.CLAUDEFLEET_FOUR }}
+          GEMINI_FREE_9: ${{ secrets.CLAUDEFLEET_FIVE }}
+          GEMINI_FREE_10: ${{ secrets.CLAUDEFLEET_SIX }}
+          GEMINI_FREE_11: ${{ secrets.GEMINI_PROJECT }}
+          GEMINI_FREE_12: ${{ secrets.GEMINI_PROJECTTWO }}
+          GEMINI_FREE_13: ${{ secrets.CLAUDEFLEET }}
         run: |
           set -eu
           url="https://x-access-token:${QUEUE_TOKEN}@github.com/PhotonBounce/occupantkiller-1.git"
