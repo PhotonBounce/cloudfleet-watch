@@ -31,7 +31,7 @@ concurrency:
 jobs:
   kaggle:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 58
     steps:
       - name: Launch or check the Kaggle workers
         env:
@@ -49,5 +49,11 @@ jobs:
           git clone -q --depth 1 -b cloudfleet-ops --filter=blob:none --sparse "$url" ops >/dev/null 2>&1 || { echo "ops clone failed"; exit 1; }
           git -C ops sparse-checkout set cloudfleet >/dev/null 2>&1
           pip -q install "kaggle==2.2.4" >/dev/null 2>&1 || { echo "kaggle install failed"; exit 1; }
-          python3 ops/cloudfleet/kaggle_launcher.py q "$MODE" >/dev/null 2>&1 || { echo "failed (details in the private status file)"; exit 1; }
+          # GitHub runs scheduled workflows late or not at all under load (2026-10-21: none for 25 min), so an auto run
+          # keeps checking every 9 min for ~45 min; the next scheduled run queues behind it (one per concurrency group).
+          rounds=1; [ "$MODE" = auto ] && rounds=5
+          for i in $(seq 1 $rounds); do
+            [ "$i" -gt 1 ] && { sleep 540; git -C ops pull -q >/dev/null 2>&1 || true; }
+            python3 ops/cloudfleet/kaggle_launcher.py q "$MODE" >/dev/null 2>&1 || { echo "failed (details in the private status file)"; exit 1; }
+          done
           echo "ok"
