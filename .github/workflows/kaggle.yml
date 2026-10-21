@@ -1,0 +1,47 @@
+name: kaggle
+
+# Every 10 minutes: keep one cloudfleet worker kernel per Kaggle account running while the private queue holds GPU
+# work it can do (Kaggle: ~30 free GPU hours a week per account, so nothing starts for an empty queue).
+# The launcher and the kernel source live in the private repo (cloudfleet/kaggle_launcher.py, kaggle_kernel.py on
+# cloudfleet-ops); this job only fetches and runs them. It prints nothing but "ok" or "failed", because the logs of a
+# public repo are public: every detail goes to reports/kaggle-status.json on the private queue branch.
+on:
+  schedule:
+    - cron: "3,13,23,33,43,53 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "auto (launch when work is queued), selftest (one short GPU check per account), status (look only)"
+        default: auto
+        type: choice
+        options: [auto, selftest, status]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kaggle
+  cancel-in-progress: false
+
+jobs:
+  kaggle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Launch or check the Kaggle workers
+        env:
+          QUEUE_TOKEN: ${{ secrets.QUEUE_TOKEN }}
+          KAGGLE_TOKEN_A: ${{ secrets.KAGGLE_API_TOKEN }}
+          KAGGLE_TOKEN_B: ${{ secrets.KAGLE_TWO }}
+          CF_GITHUB_TOKEN: ${{ secrets.KAGGLE_GITHUB_TOKEN || secrets.QUEUE_TOKEN }}
+          MODE: ${{ inputs.mode || 'auto' }}
+        run: |
+          set -eu
+          case "$MODE" in auto|selftest|status) ;; *) echo "bad mode"; exit 1;; esac
+          url="https://x-access-token:${QUEUE_TOKEN}@github.com/PhotonBounce/occupantkiller-1.git"
+          git clone -q --depth 1 -b cloudfleet-queue "$url" q >/dev/null 2>&1 || { echo "queue clone failed"; exit 1; }
+          git clone -q --depth 1 -b cloudfleet-ops --filter=blob:none --sparse "$url" ops >/dev/null 2>&1 || { echo "ops clone failed"; exit 1; }
+          git -C ops sparse-checkout set cloudfleet >/dev/null 2>&1
+          pip -q install "kaggle==2.2.4" >/dev/null 2>&1 || { echo "kaggle install failed"; exit 1; }
+          python3 ops/cloudfleet/kaggle_launcher.py q "$MODE" >/dev/null 2>&1 || { echo "failed (details in the private status file)"; exit 1; }
+          echo "ok"
