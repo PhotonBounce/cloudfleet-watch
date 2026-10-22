@@ -1,0 +1,59 @@
+name: council
+
+# Every 15 minutes: the council ("wiseguys", owner 2026-10-22). A no-LLM metrics tool reads the private queue, five
+# analyst personas on the owner's free Gemini keys review it in parallel, a chair ranks their findings, and an executor
+# applies only whitelisted, reversible queue operations (or dispatches kaggle.yml / brains.yml in this repo). The code
+# lives in the private repo (cloudfleet/council.py, council_metrics.py on cloudfleet-ops); every result goes to
+# reports/council/ on the private queue branch. This job prints nothing but "ok" or "failed": public logs are public.
+on:
+  schedule:
+    - cron: "11,26,41,56 * * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "convene the committee now even if nothing changed"
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  actions: write  # only to start kaggle.yml / brains.yml in this repo when work waits and they are not running
+
+concurrency:
+  group: council
+  cancel-in-progress: false
+
+jobs:
+  council:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Convene the council
+        env:
+          QUEUE_TOKEN: ${{ secrets.QUEUE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COUNCIL_FORCE: ${{ (github.event_name == 'workflow_dispatch' && inputs.force) && '1' || '0' }}
+          GEMINI_FREE_1: ${{ secrets.GEMINI_FREE_1 }}
+          GEMINI_FREE_2: ${{ secrets.GEMINI_FREE_2 }}
+          GEMINI_FREE_3: ${{ secrets.GEMINI_FREE_3 }}
+          GEMINI_FREE_4: ${{ secrets.GEMINI_FREE_4 }}
+          GEMINI_FREE_5: ${{ secrets.GEMINI_FREE_5 }}
+          GEMINI_FREE_6: ${{ secrets.CLAUDEFLEET_TWO }}
+          GEMINI_FREE_7: ${{ secrets.CLAUDEFLEET_THREE }}
+          GEMINI_FREE_8: ${{ secrets.CLAUDEFLEET_FOUR }}
+          GEMINI_FREE_9: ${{ secrets.CLAUDEFLEET_FIVE }}
+          GEMINI_FREE_10: ${{ secrets.CLAUDEFLEET_SIX }}
+          GEMINI_FREE_11: ${{ secrets.GEMINI_PROJECT }}
+          GEMINI_FREE_12: ${{ secrets.GEMINI_PROJECTTWO }}
+          GEMINI_FREE_13: ${{ secrets.CLAUDEFLEET }}
+        run: |
+          set -eu
+          url="https://x-access-token:${QUEUE_TOKEN}@github.com/PhotonBounce/occupantkiller-1.git"
+          git clone -q --depth 1 -b cloudfleet-queue "$url" q >/dev/null 2>&1 || { echo "failed"; exit 1; }
+          git clone -q --depth 1 -b cloudfleet-ops --filter=blob:none --sparse "$url" ops >/dev/null 2>&1 || { echo "failed"; exit 1; }
+          git -C ops sparse-checkout set cloudfleet >/dev/null 2>&1
+          git clone -q --depth 1 -b claude/peaceful-cannon-oqez4t --filter=blob:none --sparse "$url" cb >/dev/null 2>&1 || { echo "failed"; exit 1; }
+          git -C cb sparse-checkout set --no-cone /collab/DIRECTIVES.md /collab/APPROVED.md /collab/GAME-WEEK-PLAN.md /collab/antigravity/ >/dev/null 2>&1
+          python3 ops/cloudfleet/council.py q cb/collab >/dev/null 2>&1 || { echo "failed"; exit 1; }
+          echo "ok"
